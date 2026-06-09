@@ -15,13 +15,15 @@ api/refresh.py        POST — pulls 3y of closes for the tickers, caps at 750
                       rows, writes them to Vercel KV (the only Yahoo caller)
 api/stock.py          GET  — reads the KV cache; ?symbol=XLK → that series,
                       no symbol → list of cached symbols
-api/performance.py    GET  — rebuilds the cache into a pandas DataFrame and runs
-                      a quant computation, returns it chart-ready (no Yahoo call)
+api/performance.py    GET  — cumulative return, computed server-side from the
+                      cached DataFrame, returned chart-ready (no Yahoo call)
+api/rsi.py            GET  — RSI(14) over recent sessions, same pattern
 api/login.py          POST = log in (sets cookie), DELETE = log out
 api/_common.py        shared helpers (auth, KV, df_to_json, load_frame, respond)
                       — underscore = not a route; bundled into each function
 api/requirements.txt  Python deps (yfinance)
-src/                  React SPA (Login, symbol selector, Refresh button, Chart)
+src/                  React SPA (Login, symbol selector, Refresh button, and
+                      Graph — one reusable chart for price/return/RSI/etc.)
 ```
 
 Tickers are defined in `api/refresh.py` (`TICKERS`). Add to that list to track more.
@@ -73,7 +75,13 @@ wide pandas DataFrame `df` (DatetimeIndex × tickers — the same shape yfinance
 gives you) and runs `compute(df)`. Paste quant code into `compute()`; it must
 return a DataFrame/Series, which `df_to_json` turns into chart-ready series. The
 default is `df.iloc[-11:].pct_change().fillna(0).cumsum() * 100` (cumulative
-return over the last 11 sessions, in percent). The frontend just plots `data`.
+return over the last 11 sessions, in percent). `api/rsi.py` follows the same
+pattern for RSI(14). The frontend just plots `data`.
+
+To add a graph: copy `api/performance.py`, edit `compute(df)`, then add one
+entry to the `GRAPHS` list in `src/App.jsx` (`endpoint`, `title`, and a
+`format` of `price` | `percent` | `rsi` | `number`). The shared `Graph`
+component renders it and shows each series' latest value as a label.
 
 ## Deploy
 

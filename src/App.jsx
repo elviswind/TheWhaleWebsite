@@ -1,7 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
-import Chart from './Chart.jsx'
-import PerfChart from './PerfChart.jsx'
+import Graph from './Graph.jsx'
 import Login from './Login.jsx'
+
+// Server-computed graphs. Each endpoint returns { data: { label: [{time,value}] } }.
+// Add a new backend graph here and it shows up automatically.
+const GRAPHS = [
+  {
+    key: 'performance',
+    endpoint: '/api/performance',
+    title: 'Cumulative return — recent sessions',
+    format: 'percent',
+  },
+  {
+    key: 'rsi',
+    endpoint: '/api/rsi',
+    title: 'RSI (14) — last 10 sessions',
+    format: 'rsi',
+  },
+]
 
 export default function App() {
   // authed: null = checking, false = needs login, true = logged in
@@ -9,14 +25,14 @@ export default function App() {
   const [symbols, setSymbols] = useState([])
   const [symbol, setSymbol] = useState(null)
   const [prices, setPrices] = useState([])
-  const [performance, setPerformance] = useState({}) // computed server-side
+  const [graphs, setGraphs] = useState({}) // key -> { label: [{time,value}] }
   const [refreshedAt, setRefreshedAt] = useState(null)
   const [status, setStatus] = useState('loading') // loading | ready | empty | error
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Load the list of cached symbols + the computed performance series.
-  // No math here — the backend does it (see api/performance.py).
+  // Load the symbol list + every computed graph. No math here — the backend
+  // does it (see api/performance.py, api/rsi.py).
   const loadIndex = useCallback(async () => {
     setError(null)
     try {
@@ -28,7 +44,7 @@ export default function App() {
       setAuthed(true)
       if (res.status === 503) {
         setSymbols([])
-        setPerformance({})
+        setGraphs({})
         setStatus('empty')
         return
       }
@@ -39,8 +55,14 @@ export default function App() {
       setSymbol((cur) => (cur && json.symbols.includes(cur) ? cur : json.symbols[0]))
       setStatus('ready')
 
-      const perfRes = await fetch('/api/performance')
-      setPerformance(perfRes.ok ? (await perfRes.json()).data : {})
+      const results = await Promise.all(
+        GRAPHS.map((g) => fetch(g.endpoint).then((r) => (r.ok ? r.json() : null)))
+      )
+      const next = {}
+      GRAPHS.forEach((g, i) => {
+        next[g.key] = results[i]?.data ?? {}
+      })
+      setGraphs(next)
     } catch (err) {
       setAuthed(true)
       setStatus('error')
@@ -52,7 +74,7 @@ export default function App() {
     loadIndex()
   }, [loadIndex])
 
-  // Load the selected symbol's series whenever it changes.
+  // Load the selected symbol's price series whenever it changes.
   useEffect(() => {
     if (!symbol) return
     let cancelled = false
@@ -95,14 +117,12 @@ export default function App() {
     await fetch('/api/login', { method: 'DELETE' })
     setAuthed(false)
     setPrices([])
-    setPerformance({})
+    setGraphs({})
     setSymbols([])
   }
 
   if (authed === null) return <div className="status">Loading…</div>
   if (authed === false) return <Login onLogin={loadIndex} />
-
-  const latest = prices.length ? prices[prices.length - 1].value : null
 
   return (
     <>
@@ -117,7 +137,6 @@ export default function App() {
             ))}
           </select>
         )}
-        {latest != null && <span className="price">${latest.toFixed(2)}</span>}
         <button className="refresh" onClick={handleRefresh} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh data'}
         </button>
@@ -135,13 +154,21 @@ export default function App() {
       {status === 'empty' && (
         <div className="status">No data cached yet — click “Refresh data”.</div>
       )}
-      {prices.length > 0 && <Chart prices={prices} />}
 
-      {Object.keys(performance).length > 0 && (
-        <>
-          <h2 className="section">Cumulative return — recent sessions</h2>
-          <PerfChart series={performance} />
-        </>
+      {prices.length > 0 && symbol && (
+        <section>
+          <h2 className="section">{symbol} — price</h2>
+          <Graph series={{ [symbol]: prices }} format="price" />
+        </section>
+      )}
+
+      {GRAPHS.map((g) =>
+        graphs[g.key] && Object.keys(graphs[g.key]).length > 0 ? (
+          <section key={g.key}>
+            <h2 className="section">{g.title}</h2>
+            <Graph series={graphs[g.key]} format={g.format} />
+          </section>
+        ) : null
       )}
     </>
   )
