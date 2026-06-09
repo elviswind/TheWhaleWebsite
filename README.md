@@ -7,11 +7,30 @@ it as a line chart with [lightweight-charts](https://github.com/tradingview/ligh
 ## Layout
 
 ```
-api/stock.py          Python serverless function — GET /api/stock?symbol=SPY
+api/stock.py          Python serverless function — GET /api/stock?symbol=SPY (auth-protected)
+api/login.py          POST = log in (sets cookie), DELETE = log out
 api/requirements.txt  Python deps (yfinance)
-src/                  React SPA (App.jsx draws the chart)
+src/                  React SPA (Login + Chart)
 index.html            SPA entry
 ```
+
+## Authentication
+
+The API is protected by a single configurable username/password (no signup).
+`/api/login` validates them against env vars and sets a signed, HttpOnly
+session cookie (24h); `/api/stock` rejects any request without a valid cookie.
+The cookie is signed with the password as the key, so changing the password
+invalidates all existing sessions.
+
+Set these env vars in the Vercel dashboard (Project → Settings → Environment
+Variables) and, for local dev, in `.env.local` (see `.env.example`):
+
+```
+APP_USERNAME=...
+APP_PASSWORD=...   # use a long random value
+```
+
+If they are unset, the API fails closed (401 / 503).
 
 ## Local development
 
@@ -41,7 +60,7 @@ Vercel auto-detects Vite (build → `dist/`) and the Python function in `api/`.
 
 ## API
 
-`GET /api/stock?symbol=SPY` →
+`GET /api/stock?symbol=SPY` (requires the auth cookie; `401` otherwise) →
 
 ```json
 {

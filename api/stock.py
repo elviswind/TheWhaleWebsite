@@ -1,8 +1,34 @@
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import json
+import os
+import hmac
+import hashlib
+import time
 
 import yfinance as yf
+
+
+def is_authenticated(cookie_header: str) -> bool:
+    """Validate the signed `auth` session cookie set by /api/login."""
+    password = os.environ.get("APP_PASSWORD")
+    if not password:
+        return False  # fail closed when auth isn't configured
+
+    token = None
+    for part in (cookie_header or "").split(";"):
+        name, _, value = part.strip().partition("=")
+        if name == "auth":
+            token = value
+    if not token or "." not in token:
+        return False
+
+    exp, _, sig = token.rpartition(".")
+    if not exp.isdigit() or int(exp) < int(time.time()):
+        return False
+
+    expected = hmac.new(password.encode(), exp.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(sig, expected)
 
 
 def fetch_prices(symbol: str):
@@ -27,6 +53,9 @@ def fetch_prices(symbol: str):
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not is_authenticated(self.headers.get("Cookie")):
+            return self._respond(401, {"error": "Not authenticated"})
+
         query = parse_qs(urlparse(self.path).query)
         symbol = query.get("symbol", ["SPY"])[0].upper()
 
