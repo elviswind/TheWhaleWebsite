@@ -25,7 +25,7 @@ def rsi(returns, n=14):
 
 def compute(df):
     p, _ = getp(df.iloc[-60:][['MDY','GLD','SHY','TLT','XLK','XLV']])
-    return rsi(p).iloc[-1]
+    return rsi(p).iloc[-10:]
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
