@@ -9,3 +9,9 @@ __pycache__
 .env
 .env.local
 .env.*.local
+
+# Local-only dev tooling (not deployed; keeps prod zero-config untouched)
+.venv
+local_server.py
+run-local.sh
+LOCAL_DEV.md
