@@ -11,7 +11,7 @@ import yfinance as yf
 
 def is_authenticated(cookie_header: str) -> bool:
     """Validate the signed `auth` session cookie set by /api/login."""
-    password = os.environ.get("APP_PASSWORD")
+    password = (os.environ.get("APP_PASSWORD") or "").strip()
     if not password:
         return False  # fail closed when auth isn't configured
 
