@@ -4,3 +4,8 @@ dist
 __pycache__
 *.pyc
 .DS_Store
+
+# Local env files with secrets (.env.example is committed)
+.env
+.env.local
+.env.*.local
