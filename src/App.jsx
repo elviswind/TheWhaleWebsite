@@ -3,55 +3,130 @@ import Chart from './Chart.jsx'
 import Login from './Login.jsx'
 
 export default function App() {
-  // authed: null = unknown/checking, false = needs login, true = logged in
+  // authed: null = checking, false = needs login, true = logged in
   const [authed, setAuthed] = useState(null)
+  const [symbols, setSymbols] = useState([])
+  const [symbol, setSymbol] = useState(null)
   const [prices, setPrices] = useState([])
+  const [refreshedAt, setRefreshedAt] = useState(null)
+  const [status, setStatus] = useState('loading') // loading | ready | empty | error
   const [error, setError] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const loadStock = useCallback(async () => {
+  // Load the list of cached symbols (no yfinance call — reads the cache).
+  const loadIndex = useCallback(async () => {
     setError(null)
     try {
-      const res = await fetch('/api/stock?symbol=SPY')
+      const res = await fetch('/api/stock')
       if (res.status === 401) {
         setAuthed(false)
         return
       }
+      setAuthed(true)
+      if (res.status === 503) {
+        setSymbols([])
+        setStatus('empty')
+        return
+      }
       if (!res.ok) throw new Error(`API returned ${res.status}`)
       const json = await res.json()
-      setPrices(json.prices)
-      setAuthed(true)
+      setSymbols(json.symbols)
+      setRefreshedAt(json.refreshedAt)
+      setSymbol((cur) => (cur && json.symbols.includes(cur) ? cur : json.symbols[0]))
+      setStatus('ready')
     } catch (err) {
-      setAuthed(true) // we are logged in; this is a data error, not auth
+      setAuthed(true)
+      setStatus('error')
       setError(err.message)
     }
   }, [])
 
   useEffect(() => {
-    loadStock()
-  }, [loadStock])
+    loadIndex()
+  }, [loadIndex])
+
+  // Load the selected symbol's series whenever it changes.
+  useEffect(() => {
+    if (!symbol) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/stock?symbol=${symbol}`)
+        if (!res.ok) throw new Error(`API returned ${res.status}`)
+        const json = await res.json()
+        if (!cancelled) setPrices(json.prices)
+      } catch (err) {
+        if (!cancelled) {
+          setStatus('error')
+          setError(err.message)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [symbol])
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/refresh', { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Refresh failed (${res.status})`)
+      }
+      await loadIndex()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   async function handleLogout() {
     await fetch('/api/login', { method: 'DELETE' })
-    setPrices([])
     setAuthed(false)
+    setPrices([])
+    setSymbols([])
   }
 
   if (authed === null) return <div className="status">Loading…</div>
-  if (authed === false) return <Login onLogin={loadStock} />
+  if (authed === false) return <Login onLogin={loadIndex} />
 
-  const latest = prices.length ? prices[prices.length - 1].close : null
+  const latest = prices.length ? prices[prices.length - 1].value : null
 
   return (
     <>
       <header>
-        <h1>SPY</h1>
+        <h1>ETF Tracker</h1>
+        {symbols.length > 0 && (
+          <select value={symbol ?? ''} onChange={(e) => setSymbol(e.target.value)}>
+            {symbols.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        )}
         {latest != null && <span className="price">${latest.toFixed(2)}</span>}
+        <button className="refresh" onClick={handleRefresh} disabled={refreshing}>
+          {refreshing ? 'Refreshing…' : 'Refresh data'}
+        </button>
         <button className="logout" onClick={handleLogout}>
           Log out
         </button>
       </header>
 
-      {error && <div className="status error">Failed to load: {error}</div>}
+      {refreshedAt && (
+        <div className="meta">
+          Last refreshed: {new Date(refreshedAt * 1000).toLocaleString()}
+        </div>
+      )}
+      {error && <div className="status error">{error}</div>}
+      {status === 'empty' && (
+        <div className="status">No data cached yet — click “Refresh data”.</div>
+      )}
       {prices.length > 0 && <Chart prices={prices} />}
     </>
   )

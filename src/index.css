@@ -53,8 +53,38 @@ header h1 {
   color: #ef5350;
 }
 
-.logout {
+header select {
+  background: #1c2030;
+  color: #e7e7e7;
+  border: 1px solid #2a2e39;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.refresh {
   margin-left: auto;
+  background: #1f6feb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.meta {
+  color: #777;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.logout {
   background: transparent;
   color: #888;
   border: 1px solid #2a2e39;

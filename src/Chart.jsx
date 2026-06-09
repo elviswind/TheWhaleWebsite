@@ -20,7 +20,7 @@ export default function Chart({ prices }) {
     })
 
     const lineSeries = chart.addLineSeries({ color: '#4caf50', lineWidth: 2 })
-    lineSeries.setData(prices.map((p) => ({ time: p.date, value: p.close })))
+    lineSeries.setData(prices) // already [{ time, value }] from /api/stock
     chart.timeScale().fitContent()
 
     return () => chart.remove()
