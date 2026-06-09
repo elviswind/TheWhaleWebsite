@@ -1,0 +1,54 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #e7e7e7;
+  background-color: #131722;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.price {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.chart {
+  width: 100%;
+  height: 420px;
+  border: 1px solid #2a2e39;
+  border-radius: 8px;
+}
+
+.status {
+  color: #888;
+  padding: 1rem 0;
+}
+
+.status.error {
+  color: #ef5350;
+}

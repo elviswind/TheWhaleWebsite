@@ -49,4 +49,3 @@ Vercel auto-detects Vite (build → `dist/`) and the Python function in `api/`.
   "prices": [{ "date": "2026-05-12", "close": 521.34 }, ...]
 }
 ```
-# TheWhaleWebsite
