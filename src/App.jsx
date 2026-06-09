@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import Chart from './Chart.jsx'
+import PerfChart from './PerfChart.jsx'
 import Login from './Login.jsx'
 
 export default function App() {
@@ -8,12 +9,14 @@ export default function App() {
   const [symbols, setSymbols] = useState([])
   const [symbol, setSymbol] = useState(null)
   const [prices, setPrices] = useState([])
+  const [performance, setPerformance] = useState({}) // computed server-side
   const [refreshedAt, setRefreshedAt] = useState(null)
   const [status, setStatus] = useState('loading') // loading | ready | empty | error
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Load the list of cached symbols (no yfinance call — reads the cache).
+  // Load the list of cached symbols + the computed performance series.
+  // No math here — the backend does it (see api/performance.py).
   const loadIndex = useCallback(async () => {
     setError(null)
     try {
@@ -25,6 +28,7 @@ export default function App() {
       setAuthed(true)
       if (res.status === 503) {
         setSymbols([])
+        setPerformance({})
         setStatus('empty')
         return
       }
@@ -34,6 +38,9 @@ export default function App() {
       setRefreshedAt(json.refreshedAt)
       setSymbol((cur) => (cur && json.symbols.includes(cur) ? cur : json.symbols[0]))
       setStatus('ready')
+
+      const perfRes = await fetch('/api/performance')
+      setPerformance(perfRes.ok ? (await perfRes.json()).data : {})
     } catch (err) {
       setAuthed(true)
       setStatus('error')
@@ -88,6 +95,7 @@ export default function App() {
     await fetch('/api/login', { method: 'DELETE' })
     setAuthed(false)
     setPrices([])
+    setPerformance({})
     setSymbols([])
   }
 
@@ -128,6 +136,13 @@ export default function App() {
         <div className="status">No data cached yet — click “Refresh data”.</div>
       )}
       {prices.length > 0 && <Chart prices={prices} />}
+
+      {Object.keys(performance).length > 0 && (
+        <>
+          <h2 className="section">Cumulative return — recent sessions</h2>
+          <PerfChart series={performance} />
+        </>
+      )}
     </>
   )
 }

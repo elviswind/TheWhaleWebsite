@@ -15,6 +15,8 @@ api/refresh.py        POST — pulls 3y of closes for the tickers, caps at 750
                       rows, writes them to Vercel KV (the only Yahoo caller)
 api/stock.py          GET  — reads the KV cache; ?symbol=XLK → that series,
                       no symbol → list of cached symbols
+api/performance.py    GET  — rebuilds the cache into a pandas DataFrame and runs
+                      a quant computation, returns it chart-ready (no Yahoo call)
 api/login.py          POST = log in (sets cookie), DELETE = log out
 api/requirements.txt  Python deps (yfinance)
 src/                  React SPA (Login, symbol selector, Refresh button, Chart)
@@ -59,6 +61,17 @@ refresh errors).
 ```
 
 `GET /api/stock` → `{ "symbols": ["GLD", "MDY", ...], "refreshedAt": 1781041307 }`
+
+`GET /api/performance` →
+```json
+{ "data": { "XLK": [{ "time": "2026-05-20", "value": 0.0 }, ...], "TLT": [...] }, "refreshedAt": 1781041307 }
+```
+Computed server-side. `api/performance.py` rebuilds the cached closes into a
+wide pandas DataFrame `df` (DatetimeIndex × tickers — the same shape yfinance
+gives you) and runs `compute(df)`. Paste quant code into `compute()`; it must
+return a DataFrame/Series, which `df_to_json` turns into chart-ready series. The
+default is `df.iloc[-11:].pct_change().fillna(0).cumsum() * 100` (cumulative
+return over the last 11 sessions, in percent). The frontend just plots `data`.
 
 ## Deploy
 
