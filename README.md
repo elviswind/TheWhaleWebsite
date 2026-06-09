@@ -18,6 +18,8 @@ api/stock.py          GET  — reads the KV cache; ?symbol=XLK → that series,
 api/performance.py    GET  — rebuilds the cache into a pandas DataFrame and runs
                       a quant computation, returns it chart-ready (no Yahoo call)
 api/login.py          POST = log in (sets cookie), DELETE = log out
+api/_common.py        shared helpers (auth, KV, df_to_json, load_frame, respond)
+                      — underscore = not a route; bundled into each function
 api/requirements.txt  Python deps (yfinance)
 src/                  React SPA (Login, symbol selector, Refresh button, Chart)
 ```
