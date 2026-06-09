@@ -43,7 +43,9 @@ a valid cookie.
 | `APP_USERNAME`, `APP_PASSWORD` | Login credentials (set as **non-sensitive**) |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Auto-injected when you connect a Vercel KV / Upstash Redis store to the project |
 
-The code also accepts `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.
+The code matches any env var **ending with** those suffixes, so a per-store
+prefix like `TheWhaleWebsite_KV_REST_API_URL` is picked up automatically. It
+also accepts `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`.
 Without KV configured, the API fails closed (the read endpoint reports no data,
 refresh errors).
 

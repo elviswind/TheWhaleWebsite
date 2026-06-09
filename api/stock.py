@@ -39,9 +39,21 @@ def is_authenticated(cookie_header: str) -> bool:
 _KV_LOCAL = os.path.join(tempfile.gettempdir(), "spy_kv_local.json")
 
 
+def _env_endswith(suffix: str):
+    """Value of an env var named exactly `suffix`, or ending with it. Vercel KV
+    stores prefix their vars (e.g. TheWhaleWebsite_KV_REST_API_URL), so we match
+    on the suffix to stay prefix-agnostic."""
+    if os.environ.get(suffix):
+        return os.environ[suffix]
+    for key, val in os.environ.items():
+        if val and key.endswith(suffix):
+            return val
+    return None
+
+
 def _kv_creds():
-    url = os.environ.get("KV_REST_API_URL") or os.environ.get("UPSTASH_REDIS_REST_URL")
-    token = os.environ.get("KV_REST_API_TOKEN") or os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+    url = _env_endswith("KV_REST_API_URL") or _env_endswith("UPSTASH_REDIS_REST_URL")
+    token = _env_endswith("KV_REST_API_TOKEN") or _env_endswith("UPSTASH_REDIS_REST_TOKEN")
     return url, token
 
 
