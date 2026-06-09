@@ -5,14 +5,16 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(__file__))
 from _common import authed, load_frame, df_to_json, respond  # noqa: E402
 
-PERF_WINDOW = 11  # df.iloc[-PERF_WINDOW:]
+PERF_WINDOW = 4  # df.iloc[-PERF_WINDOW:]
 
 
 def compute(df):
     """The graph. Paste quant code here; it gets `df` (wide Close prices) and
     returns a DataFrame/Series to plot. Default: cumulative return over the last
     PERF_WINDOW sessions, in percent."""
-    return df.iloc[-PERF_WINDOW:].pct_change().fillna(0).cumsum() * 100
+    x = df.iloc[-PERF_WINDOW:].pct_change().fillna(0)
+    x.iloc[-1] *= 2
+    return x.cumsum() * 100
 
 
 class handler(BaseHTTPRequestHandler):

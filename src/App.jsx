@@ -17,6 +17,12 @@ const GRAPHS = [
     title: 'RSI (14) — last 10 sessions',
     format: 'rsi',
   },
+  {
+    key: 'p',
+    endpoint: '/api/p',
+    title: 'P RSI (14) — last 10 sessions',
+    format: 'rsi',
+  },
 ]
 
 export default function App() {

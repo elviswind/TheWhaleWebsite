@@ -5,6 +5,15 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(__file__))
 from _common import authed, load_frame, df_to_json, respond  # noqa: E402
 
+PERF_WINDOW = 4  # df.iloc[-PERF_WINDOW:]
+
+def getp(df):
+    pct = df.dropna().pct_change()
+    f = pct.rolling(3).sum() + pct
+    f = f.dropna()
+    choice = f.idxmin(axis=1)
+    p = pct.shift(-1).loc[choice.index].apply(lambda row: row[choice[row.name]], axis=1)
+    return p, choice
 
 def rsi(returns, n=14):
     eq = (1 + returns.fillna(0)).cumprod()
@@ -15,8 +24,8 @@ def rsi(returns, n=14):
 
 
 def compute(df):
-    return rsi(df.iloc[-60:].dropna().pct_change()).iloc[-10:]
-
+    p, _ = getp(df.iloc[-60:][['MDY','GLD','SHY','TLT','XLK','XLV']])
+    return rsi(p).iloc[-1]
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
