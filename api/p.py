@@ -3,25 +3,7 @@ import sys
 from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(__file__))
-from _common import authed, load_frame, df_to_json, respond  # noqa: E402
-
-PERF_WINDOW = 4  # df.iloc[-PERF_WINDOW:]
-
-def getp(df):
-    pct = df.dropna().pct_change()
-    f = pct.rolling(3).sum() + pct
-    f = f.dropna()
-    choice = f.idxmin(axis=1)
-    p = pct.shift(-1).loc[choice.index].apply(lambda row: row[choice[row.name]], axis=1)
-    return p, choice
-
-def rsi(returns, n=14):
-    eq = (1 + returns).cumprod().dropna()
-    delta = eq.diff()
-    gain = delta.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
-    loss = (-delta).clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
-    return (100 - 100 / (1 + gain / (loss + 1e-12)))
-
+from _common import authed, load_frame, df_to_json, respond, getp, rsi  # noqa: E402
 
 def compute(df):
     p, _ = getp(df.iloc[-60:][['MDY','GLD','SHY','TLT','XLK','XLV']])

@@ -3,20 +3,10 @@ import sys
 from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(__file__))
-from _common import authed, load_frame, df_to_json, respond  # noqa: E402
-
-
-def rsi(returns, n=14):
-    eq = (1 + returns.fillna(0)).cumprod()
-    delta = eq.diff()
-    gain = delta.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
-    loss = (-delta).clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
-    return (100 - 100 / (1 + gain / (loss + 1e-12)))
-
+from _common import authed, load_frame, df_to_json, respond, rsi  # noqa: E402
 
 def compute(df):
     return rsi(df.iloc[-60:].dropna().pct_change()).iloc[-10:]
-
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
