@@ -6,17 +6,50 @@ from http.server import BaseHTTPRequestHandler
 import yfinance as yf
 
 sys.path.insert(0, os.path.dirname(__file__))
-from _common import authed, df_to_json, kv_set, respond, CACHE_KEY  # noqa: E402
+from _common import (  # noqa: E402
+    authed, df_to_json, kv_lock, kv_set, kv_unlock, load_cache, load_frame,
+    respond, CACHE_KEY,
+)
+
+# Reuse each graph's compute() so the data returned by refresh matches exactly
+# what the GET endpoints would produce.
+from performance import compute as compute_performance  # noqa: E402
+from rsi import compute as compute_rsi  # noqa: E402
+from p import compute as compute_p  # noqa: E402
 
 # The universe we cache. Add tickers here as you add graphs.
 TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP"]
 PERIOD = "3y"        # how much history to pull from Yahoo
 MAX_ROWS = 750       # cap rows stored per ticker (~3 trading years)
 
+# Keys here must match the GRAPHS list in src/App.jsx.
+GRAPH_COMPUTES = {
+    "performance": compute_performance,
+    "rsi": compute_rsi,
+    "p": compute_p,
+}
+
+LOCK_KEY = "prices:lock"     # single-writer lock so concurrent refreshes don't all hit Yahoo
+RATE_LIMIT_SECONDS = 60      # skip the fetch entirely if the cache was refreshed this recently
+LOCK_WAIT_SECONDS = 10       # how long a lock-loser waits for the winner's write to land
+
 
 def build_cache() -> dict:
     closes = yf.download(TICKERS, period=PERIOD, progress=False)["Close"]
     return df_to_json(closes.tail(MAX_ROWS))
+
+
+def build_graphs(df) -> dict:
+    """Compute every graph from the freshly-read frame. A failing graph yields
+    {} rather than sinking the whole refresh — mirrors the frontend's tolerance
+    of a missing graph endpoint."""
+    out = {}
+    for key, fn in GRAPH_COMPUTES.items():
+        try:
+            out[key] = df_to_json(fn(df))
+        except Exception:  # noqa: BLE001
+            out[key] = {}
+    return out
 
 
 class handler(BaseHTTPRequestHandler):
@@ -25,16 +58,56 @@ class handler(BaseHTTPRequestHandler):
             return respond(self, 401, {"error": "Not authenticated"})
 
         try:
-            data = build_cache()
-            payload = {"refreshedAt": int(time.time()), "data": data}
-            kv_set(CACHE_KEY, payload)
+            self._maybe_refresh()
+            # Read the (now-current) cache straight back so the response carries
+            # the same freshness/data the GET endpoints would serve — no waiting
+            # on a CDN-cached round trip.
+            df, refreshed_at = load_frame()
         except Exception as exc:  # noqa: BLE001 - surface to client
             return respond(self, 502, {"error": str(exc)})
 
-        rows = max((len(v) for v in data.values()), default=0)
+        if df is None or df.empty:
+            return respond(self, 503, {"error": "No data available."})
+
+        prices = df_to_json(df)
         respond(self, 200, {
             "ok": True,
-            "refreshedAt": payload["refreshedAt"],
-            "symbols": sorted(data),
-            "rows": rows,
+            "refreshedAt": refreshed_at,
+            "symbols": sorted(prices),
+            "prices": prices,
+            "graphs": build_graphs(df),
         })
+
+    def _maybe_refresh(self):
+        """Refresh the cache if it's stale, coordinating with concurrent calls:
+
+        1. read current; skip the fetch if refreshed < RATE_LIMIT_SECONDS ago
+        2. take the single-writer lock; if we can't, briefly wait for the holder
+        3. fetch from Yahoo
+        4. write, then release the lock
+
+        Either way the caller reads the resulting cache back and returns it, so a
+        request that loses the race still serves fresh data instead of erroring.
+        """
+        cache = load_cache()
+        now = int(time.time())
+        if cache and now - (cache.get("refreshedAt") or 0) < RATE_LIMIT_SECONDS:
+            return  # already fresh — serve it as-is
+
+        prev = cache.get("refreshedAt") if cache else None
+        if not kv_lock(LOCK_KEY):
+            # Another request is already fetching. Wait briefly for its write so
+            # we return fresh data rather than the stale cache.
+            deadline = time.time() + LOCK_WAIT_SECONDS
+            while time.time() < deadline:
+                time.sleep(0.5)
+                cache = load_cache()
+                if cache and cache.get("refreshedAt") != prev:
+                    return
+            return  # timed out — fall back to whatever's current
+
+        try:
+            data = build_cache()
+            kv_set(CACHE_KEY, {"refreshedAt": now, "data": data})
+        finally:
+            kv_unlock(LOCK_KEY)

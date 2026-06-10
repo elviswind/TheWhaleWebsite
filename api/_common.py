@@ -161,6 +161,42 @@ def kv_set(key: str, value):
         json.dump(store, f)
 
 
+def kv_command(*args):
+    """Run a raw Redis command via the Upstash REST API and return its `result`.
+    Returns None when KV isn't configured (local dev has no real concurrency)."""
+    url, token = _kv_creds()
+    if not (url and token):
+        return None
+    req = urllib.request.Request(
+        url,
+        data=json.dumps([str(a) for a in args]).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode()).get("result")
+
+
+def kv_lock(key: str, ttl: int = 120) -> bool:
+    """Best-effort single-writer lock: SET key <ts> NX EX ttl. True if acquired.
+    The TTL means the lock frees itself if its holder dies mid-refresh. Without
+    KV (local dev) there's no concurrency to guard, so it always succeeds."""
+    url, token = _kv_creds()
+    if not (url and token):
+        return True
+    return kv_command("SET", key, int(time.time()), "NX", "EX", ttl) == "OK"
+
+
+def kv_unlock(key: str):
+    """Release a kv_lock. No-op when KV isn't configured."""
+    url, token = _kv_creds()
+    if url and token:
+        kv_command("DEL", key)
+
+
 # --- Cached prices ---------------------------------------------------------
 def load_cache():
     """Return the parsed price cache `{refreshedAt, data}` or None if empty."""

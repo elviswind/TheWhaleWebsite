@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Graph from './Graph.jsx'
 import Login from './Login.jsx'
+
+// Auto-refresh on load when the cache is older than this.
+const STALE_MS = 5 * 60 * 1000
 
 // Server-computed graphs. Each endpoint returns { data: { label: [{time,value}] } }.
 // Add a new backend graph here and it shows up automatically.
@@ -30,16 +33,49 @@ export default function App() {
   const [authed, setAuthed] = useState(null)
   const [symbols, setSymbols] = useState([])
   const [symbol, setSymbol] = useState(null)
-  const [prices, setPrices] = useState([])
+  const [priceData, setPriceData] = useState({}) // ticker -> [{time,value}]
   const [graphs, setGraphs] = useState({}) // key -> { label: [{time,value}] }
   const [refreshedAt, setRefreshedAt] = useState(null)
   const [status, setStatus] = useState('loading') // loading | ready | empty | error
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
+  const didLoad = useRef(false)
 
-  // Load the symbol list + every computed graph. No math here — the backend
-  // does it (see api/performance.py, api/rsi.py).
-  const loadIndex = useCallback(async () => {
+  // Push a {symbols, refreshedAt, graphs, prices?} payload into state. Updating
+  // these triggers React to re-render the charts — no manual redraw needed.
+  const applyData = useCallback((payload) => {
+    const syms = payload.symbols ?? []
+    setSymbols(syms)
+    setRefreshedAt(payload.refreshedAt ?? null)
+    setGraphs(payload.graphs ?? {})
+    if (payload.prices) setPriceData(payload.prices)
+    setSymbol((cur) => (cur && syms.includes(cur) ? cur : syms[0] ?? null))
+    setStatus(syms.length ? 'ready' : 'empty')
+  }, [])
+
+  // Refresh: the backend writes the prices, reads them back, and returns the
+  // fresh index + every computed graph. We render straight from that response,
+  // so we never read a stale CDN-cached GET right after a write.
+  const refresh = useCallback(async () => {
+    setRefreshing(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/refresh', { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Refresh failed (${res.status})`)
+      }
+      applyData(await res.json())
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [applyData])
+
+  // On load: read the cache's freshness, then auto-refresh if it's stale (or
+  // missing). Otherwise load the existing graphs from their GET endpoints.
+  const load = useCallback(async () => {
     setError(null)
     try {
       const res = await fetch('/api/stock')
@@ -48,18 +84,18 @@ export default function App() {
         return
       }
       setAuthed(true)
-      if (res.status === 503) {
-        setSymbols([])
-        setGraphs({})
-        setStatus('empty')
+      const index =
+        res.status === 503
+          ? { symbols: [], refreshedAt: null }
+          : await res.json()
+      if (res.status !== 503 && !res.ok) throw new Error(`API returned ${res.status}`)
+
+      const stale =
+        !index.refreshedAt || Date.now() - index.refreshedAt * 1000 > STALE_MS
+      if (stale) {
+        await refresh()
         return
       }
-      if (!res.ok) throw new Error(`API returned ${res.status}`)
-      const json = await res.json()
-      setSymbols(json.symbols)
-      setRefreshedAt(json.refreshedAt)
-      setSymbol((cur) => (cur && json.symbols.includes(cur) ? cur : json.symbols[0]))
-      setStatus('ready')
 
       const results = await Promise.all(
         GRAPHS.map((g) => fetch(g.endpoint).then((r) => (r.ok ? r.json() : null)))
@@ -68,28 +104,31 @@ export default function App() {
       GRAPHS.forEach((g, i) => {
         next[g.key] = results[i]?.data ?? {}
       })
-      setGraphs(next)
+      applyData({ symbols: index.symbols, refreshedAt: index.refreshedAt, graphs: next })
     } catch (err) {
       setAuthed(true)
       setStatus('error')
       setError(err.message)
     }
-  }, [])
+  }, [refresh, applyData])
 
   useEffect(() => {
-    loadIndex()
-  }, [loadIndex])
+    if (didLoad.current) return // guard StrictMode's double-invoke (avoid double auto-refresh)
+    didLoad.current = true
+    load()
+  }, [load])
 
-  // Load the selected symbol's price series whenever it changes.
+  // Fetch the selected symbol's prices on demand — unless a refresh already
+  // populated the full price set (every ticker), in which case we have it.
   useEffect(() => {
-    if (!symbol) return
+    if (!symbol || priceData[symbol]) return
     let cancelled = false
     ;(async () => {
       try {
         const res = await fetch(`/api/stock?symbol=${symbol}`)
         if (!res.ok) throw new Error(`API returned ${res.status}`)
         const json = await res.json()
-        if (!cancelled) setPrices(json.prices)
+        if (!cancelled) setPriceData((d) => ({ ...d, [symbol]: json.prices }))
       } catch (err) {
         if (!cancelled) {
           setStatus('error')
@@ -100,35 +139,20 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [symbol])
-
-  async function handleRefresh() {
-    setRefreshing(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/refresh', { method: 'POST' })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || `Refresh failed (${res.status})`)
-      }
-      await loadIndex()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setRefreshing(false)
-    }
-  }
+  }, [symbol, priceData])
 
   async function handleLogout() {
     await fetch('/api/login', { method: 'DELETE' })
     setAuthed(false)
-    setPrices([])
+    setPriceData({})
     setGraphs({})
     setSymbols([])
   }
 
+  const prices = (symbol && priceData[symbol]) || []
+
   if (authed === null) return <div className="status">Loading…</div>
-  if (authed === false) return <Login onLogin={loadIndex} />
+  if (authed === false) return <Login onLogin={load} />
 
   return (
     <>
@@ -143,7 +167,7 @@ export default function App() {
             ))}
           </select>
         )}
-        <button className="refresh" onClick={handleRefresh} disabled={refreshing}>
+        <button className="refresh" onClick={refresh} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh data'}
         </button>
         <button className="logout" onClick={handleLogout}>
