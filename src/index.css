@@ -70,6 +70,44 @@ header h1 {
   font-variant-numeric: tabular-nums;
 }
 
+.quotes {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.quotes th,
+.quotes td {
+  text-align: right;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2a2e39;
+}
+
+.quotes th {
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.quotes th:first-child,
+.quotes td.sym {
+  text-align: left;
+}
+
+.quotes td.sym {
+  font-weight: 600;
+}
+
+.quotes .up {
+  color: #26a69a;
+}
+
+.quotes .down {
+  color: #ef5350;
+}
+
 .status {
   color: #888;
   padding: 1rem 0;

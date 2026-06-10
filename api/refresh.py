@@ -8,7 +8,7 @@ import yfinance as yf
 sys.path.insert(0, os.path.dirname(__file__))
 from _common import (  # noqa: E402
     authed, df_to_json, kv_lock, kv_set, kv_unlock, load_cache, load_frame,
-    respond, CACHE_KEY,
+    quotes_from_data, respond, CACHE_KEY,
 )
 
 # Reuse each graph's compute() so the data returned by refresh matches exactly
@@ -19,8 +19,8 @@ from p import compute as compute_p  # noqa: E402
 
 # The universe we cache. Add tickers here as you add graphs.
 TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP"]
-PERIOD = "3y"        # how much history to pull from Yahoo
-MAX_ROWS = 750       # cap rows stored per ticker (~3 trading years)
+PERIOD = "6mo"       # how much history to pull from Yahoo
+MAX_ROWS = 130       # cap rows stored per ticker (~6 trading months)
 
 # Keys here must match the GRAPHS list in src/App.jsx.
 GRAPH_COMPUTES = {
@@ -74,7 +74,7 @@ class handler(BaseHTTPRequestHandler):
             "ok": True,
             "refreshedAt": refreshed_at,
             "symbols": sorted(prices),
-            "prices": prices,
+            "quotes": quotes_from_data(prices),
             "graphs": build_graphs(df),
         })
 

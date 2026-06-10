@@ -92,6 +92,29 @@ def df_to_json(df) -> dict:
     return out
 
 
+def quotes_from_data(data: dict) -> dict:
+    """Latest price, prior close, and change per ticker — for the quote table:
+
+        {"XLK": {"price": 187.34, "prevClose": 185.0,
+                 "change": 2.34, "changePct": 1.26}, ...}
+
+    Expects the cached `{ticker: [{time, value}]}` shape. Tickers with no points
+    are skipped; change fields are null when there's no prior close."""
+    out = {}
+    for ticker, points in data.items():
+        if not points:
+            continue
+        price = points[-1]["value"]
+        prev = points[-2]["value"] if len(points) > 1 else None
+        out[str(ticker)] = {
+            "price": price,
+            "prevClose": prev,
+            "change": round(price - prev, 2) if prev is not None else None,
+            "changePct": round((price - prev) / prev * 100, 2) if prev else None,
+        }
+    return out
+
+
 # --- Vercel KV (Upstash Redis REST) ----------------------------------------
 _KV_LOCAL = os.path.join(tempfile.gettempdir(), "spy_kv_local.json")
 

@@ -32,8 +32,7 @@ export default function App() {
   // authed: null = checking, false = needs login, true = logged in
   const [authed, setAuthed] = useState(null)
   const [symbols, setSymbols] = useState([])
-  const [symbol, setSymbol] = useState(null)
-  const [priceData, setPriceData] = useState({}) // ticker -> [{time,value}]
+  const [quotes, setQuotes] = useState({}) // ticker -> { price, prevClose, change, changePct }
   const [graphs, setGraphs] = useState({}) // key -> { label: [{time,value}] }
   const [refreshedAt, setRefreshedAt] = useState(null)
   const [status, setStatus] = useState('loading') // loading | ready | empty | error
@@ -41,15 +40,14 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   const didLoad = useRef(false)
 
-  // Push a {symbols, refreshedAt, graphs, prices?} payload into state. Updating
-  // these triggers React to re-render the charts — no manual redraw needed.
+  // Push a {symbols, refreshedAt, quotes, graphs} payload into state. Updating
+  // these triggers React to re-render the table + charts — no manual redraw.
   const applyData = useCallback((payload) => {
     const syms = payload.symbols ?? []
     setSymbols(syms)
     setRefreshedAt(payload.refreshedAt ?? null)
+    setQuotes(payload.quotes ?? {})
     setGraphs(payload.graphs ?? {})
-    if (payload.prices) setPriceData(payload.prices)
-    setSymbol((cur) => (cur && syms.includes(cur) ? cur : syms[0] ?? null))
     setStatus(syms.length ? 'ready' : 'empty')
   }, [])
 
@@ -98,13 +96,22 @@ export default function App() {
       }
 
       const results = await Promise.all(
-        GRAPHS.map((g) => fetch(g.endpoint).then((r) => (r.ok ? r.json() : null)))
+        GRAPHS.map((g) =>
+          fetch(g.endpoint)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null) // tolerate a truncated/empty body — show the rest
+        )
       )
       const next = {}
       GRAPHS.forEach((g, i) => {
         next[g.key] = results[i]?.data ?? {}
       })
-      applyData({ symbols: index.symbols, refreshedAt: index.refreshedAt, graphs: next })
+      applyData({
+        symbols: index.symbols,
+        refreshedAt: index.refreshedAt,
+        quotes: index.quotes,
+        graphs: next,
+      })
     } catch (err) {
       setAuthed(true)
       setStatus('error')
@@ -118,38 +125,13 @@ export default function App() {
     load()
   }, [load])
 
-  // Fetch the selected symbol's prices on demand — unless a refresh already
-  // populated the full price set (every ticker), in which case we have it.
-  useEffect(() => {
-    if (!symbol || priceData[symbol]) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch(`/api/stock?symbol=${symbol}`)
-        if (!res.ok) throw new Error(`API returned ${res.status}`)
-        const json = await res.json()
-        if (!cancelled) setPriceData((d) => ({ ...d, [symbol]: json.prices }))
-      } catch (err) {
-        if (!cancelled) {
-          setStatus('error')
-          setError(err.message)
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [symbol, priceData])
-
   async function handleLogout() {
     await fetch('/api/login', { method: 'DELETE' })
     setAuthed(false)
-    setPriceData({})
+    setQuotes({})
     setGraphs({})
     setSymbols([])
   }
-
-  const prices = (symbol && priceData[symbol]) || []
 
   if (authed === null) return <div className="status">Loading…</div>
   if (authed === false) return <Login onLogin={load} />
@@ -158,15 +140,6 @@ export default function App() {
     <>
       <header>
         <h1>ETF Tracker</h1>
-        {symbols.length > 0 && (
-          <select value={symbol ?? ''} onChange={(e) => setSymbol(e.target.value)}>
-            {symbols.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        )}
         <button className="refresh" onClick={refresh} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh data'}
         </button>
@@ -185,10 +158,38 @@ export default function App() {
         <div className="status">No data cached yet — click “Refresh data”.</div>
       )}
 
-      {prices.length > 0 && symbol && (
+      {symbols.length > 0 && (
         <section>
-          <h2 className="section">{symbol} — price</h2>
-          <Graph series={{ [symbol]: prices }} format="price" />
+          <h2 className="section">Prices</h2>
+          <table className="quotes">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Price</th>
+                <th>Change</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {symbols.map((s) => {
+                const q = quotes[s] ?? {}
+                const dir = q.change > 0 ? 'up' : q.change < 0 ? 'down' : ''
+                const sign = q.change > 0 ? '+' : ''
+                return (
+                  <tr key={s}>
+                    <td className="sym">{s}</td>
+                    <td>{q.price != null ? q.price.toFixed(2) : '—'}</td>
+                    <td className={dir}>
+                      {q.change != null ? `${sign}${q.change.toFixed(2)}` : '—'}
+                    </td>
+                    <td className={dir}>
+                      {q.changePct != null ? `${sign}${q.changePct.toFixed(2)}%` : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </section>
       )}
 

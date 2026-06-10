@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, os.path.dirname(__file__))
-from _common import authed, load_cache, respond  # noqa: E402
+from _common import authed, load_cache, quotes_from_data, respond  # noqa: E402
 
 
 class handler(BaseHTTPRequestHandler):
@@ -32,5 +32,9 @@ class handler(BaseHTTPRequestHandler):
                 cache=True,
             )
 
-        # No symbol: report what's available.
-        respond(self, 200, {"symbols": sorted(data), "refreshedAt": refreshed_at}, cache=True)
+        # No symbol: report what's available plus a quote per ticker.
+        respond(self, 200, {
+            "symbols": sorted(data),
+            "refreshedAt": refreshed_at,
+            "quotes": quotes_from_data(data),
+        }, cache=True)
