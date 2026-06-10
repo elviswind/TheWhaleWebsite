@@ -16,7 +16,7 @@ def getp(df):
     return p, choice
 
 def rsi(returns, n=14):
-    eq = (1 + returns.fillna(0)).cumprod()
+    eq = (1 + returns).cumprod().dropna()
     delta = eq.diff()
     gain = delta.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
     loss = (-delta).clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
@@ -25,7 +25,7 @@ def rsi(returns, n=14):
 
 def compute(df):
     p, _ = getp(df.iloc[-60:][['MDY','GLD','SHY','TLT','XLK','XLV']])
-    return rsi(p).iloc[-10:]
+    return rsi(p.shift(1)).iloc[-10:]
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
