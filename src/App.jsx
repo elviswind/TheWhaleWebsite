@@ -5,6 +5,12 @@ import Login from './Login.jsx'
 // Auto-refresh on load when the cache is older than this.
 const STALE_MS = 5 * 60 * 1000
 
+// Local dev runs against the IB-backed server (see api/refresh.py); there we
+// poll for live prices. The production build serves Yahoo data and refreshes
+// only on demand. import.meta.env.DEV is true exactly under `npm run dev`.
+const LIVE = import.meta.env.DEV
+const LIVE_INTERVAL_MS = 1000
+
 // Server-computed graphs. Each endpoint returns { data: { label: [{time,value}] } }.
 // Add a new backend graph here and it shows up automatically.
 const GRAPHS = [
@@ -125,6 +131,24 @@ export default function App() {
     load()
   }, [load])
 
+  // Live mode (local IB server): poll every second. We self-schedule the next
+  // tick only after the previous refresh settles, so a slow fetch can't stack
+  // overlapping requests — the cadence is "interval between refreshes".
+  useEffect(() => {
+    if (!LIVE || authed !== true) return
+    let stopped = false
+    let timer
+    const tick = async () => {
+      await refresh()
+      if (!stopped) timer = setTimeout(tick, LIVE_INTERVAL_MS)
+    }
+    timer = setTimeout(tick, LIVE_INTERVAL_MS)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  }, [authed, refresh])
+
   async function handleLogout() {
     await fetch('/api/login', { method: 'DELETE' })
     setAuthed(false)
@@ -140,9 +164,16 @@ export default function App() {
     <>
       <header>
         <h1>ETF Tracker</h1>
-        <button className="refresh" onClick={refresh} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh data'}
-        </button>
+        {LIVE ? (
+          <span className="live-badge" title="Auto-refreshing from the local IB server">
+            <span className={`dot${refreshing ? ' busy' : ''}`} />
+            Live
+          </span>
+        ) : (
+          <button className="refresh" onClick={refresh} disabled={refreshing}>
+            {refreshing ? 'Refreshing…' : 'Refresh data'}
+          </button>
+        )}
         <button className="logout" onClick={handleLogout}>
           Log out
         </button>
@@ -150,7 +181,14 @@ export default function App() {
 
       {refreshedAt && (
         <div className="meta">
-          Last refreshed: {new Date(refreshedAt * 1000).toLocaleString()}
+          {LIVE ? (
+            <>
+              Auto-refreshing every {LIVE_INTERVAL_MS / 1000}s · last update{' '}
+              {new Date(refreshedAt * 1000).toLocaleTimeString()}
+            </>
+          ) : (
+            <>Last refreshed: {new Date(refreshedAt * 1000).toLocaleString()}</>
+          )}
         </div>
       )}
       {error && <div className="status error">{error}</div>}

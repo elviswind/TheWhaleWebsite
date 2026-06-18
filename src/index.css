@@ -148,6 +148,44 @@ header select {
   margin-bottom: 0.75rem;
 }
 
+/* Live auto-refresh indicator (local IB-backed dev only). */
+.live-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #26a69a;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.live-badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #26a69a;
+  box-shadow: 0 0 0 0 rgba(38, 166, 154, 0.6);
+  animation: live-pulse 2s ease-out infinite;
+}
+
+/* While a refresh is in flight, pulse faster to signal activity. */
+.live-badge .dot.busy {
+  animation-duration: 0.8s;
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(38, 166, 154, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(38, 166, 154, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(38, 166, 154, 0);
+  }
+}
+
 .logout {
   background: transparent;
   color: #888;

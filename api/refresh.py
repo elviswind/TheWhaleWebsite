@@ -35,7 +35,10 @@ GRAPH_COMPUTES = {
 }
 
 LOCK_KEY = "prices:lock"     # single-writer lock so concurrent refreshes don't all hit Yahoo
-RATE_LIMIT_SECONDS = 60      # skip the fetch entirely if the cache was refreshed this recently
+# Local IB-backed dev refreshes aggressively (the UI polls every second); the
+# deployed Yahoo path stays gently rate-limited so we don't hammer the API.
+LIVE = not os.environ.get("VERCEL")
+RATE_LIMIT_SECONDS = 0 if LIVE else 60  # skip the fetch if the cache was refreshed this recently
 LOCK_WAIT_SECONDS = 10       # how long a lock-loser waits for the winner's write to land
 
 
