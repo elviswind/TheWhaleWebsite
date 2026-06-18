@@ -47,6 +47,7 @@ export default function App() {
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [health, setHealth] = useState(null) // null until first poll; { state, summary, ... }
+  const [healthCheckedAt, setHealthCheckedAt] = useState(null) // ms timestamp of last poll
   const didLoad = useRef(false)
 
   // Push a {symbols, refreshedAt, quotes, graphs} payload into state. Updating
@@ -166,6 +167,7 @@ export default function App() {
       } catch {
         if (!stopped) setHealth({ state: 'down', summary: 'Health check failed' })
       }
+      if (!stopped) setHealthCheckedAt(Date.now())
       if (!stopped) timer = setTimeout(poll, HEALTH_INTERVAL_MS)
     }
     poll()
@@ -217,6 +219,14 @@ export default function App() {
                 ? 'IB degraded'
                 : 'IB down'}
             {health.score != null && ` (${health.score})`}
+          </span>
+        )}
+        {LIVE && healthCheckedAt && (
+          <span
+            className="health-checked"
+            title={`Last health check: ${new Date(healthCheckedAt).toLocaleString()}`}
+          >
+            Checked {new Date(healthCheckedAt).toLocaleTimeString()}
           </span>
         )}
         <button className="logout" onClick={handleLogout}>

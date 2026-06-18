@@ -220,6 +220,13 @@ header select {
   color: #ef5350;
 }
 
+.health-checked {
+  font-size: 0.75rem;
+  color: #8a93a3;
+  letter-spacing: 0.02em;
+  cursor: help;
+}
+
 .logout {
   background: transparent;
   color: #888;
