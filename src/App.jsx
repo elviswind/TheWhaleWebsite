@@ -10,6 +10,8 @@ const STALE_MS = 5 * 60 * 1000
 // only on demand. import.meta.env.DEV is true exactly under `npm run dev`.
 const LIVE = import.meta.env.DEV
 const LIVE_INTERVAL_MS = 1000
+// In live mode, poll the IB server's /health verdict on this cadence.
+const HEALTH_INTERVAL_MS = 5000
 
 // Server-computed graphs. Each endpoint returns { data: { label: [{time,value}] } }.
 // Add a new backend graph here and it shows up automatically.
@@ -44,6 +46,7 @@ export default function App() {
   const [status, setStatus] = useState('loading') // loading | ready | empty | error
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [health, setHealth] = useState(null) // null until first poll; { state, summary, ... }
   const didLoad = useRef(false)
 
   // Push a {symbols, refreshedAt, quotes, graphs} payload into state. Updating
@@ -149,6 +152,29 @@ export default function App() {
     }
   }, [authed, refresh])
 
+  // Poll the IB server's health verdict every HEALTH_INTERVAL_MS (live mode
+  // only). On any failure we treat the IB API as down so the badge goes red.
+  useEffect(() => {
+    if (!LIVE || authed !== true) return
+    let stopped = false
+    let timer
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/health')
+        if (!res.ok) throw new Error(`health ${res.status}`)
+        if (!stopped) setHealth(await res.json())
+      } catch {
+        if (!stopped) setHealth({ state: 'down', summary: 'Health check failed' })
+      }
+      if (!stopped) timer = setTimeout(poll, HEALTH_INTERVAL_MS)
+    }
+    poll()
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  }, [authed])
+
   async function handleLogout() {
     await fetch('/api/login', { method: 'DELETE' })
     setAuthed(false)
@@ -173,6 +199,25 @@ export default function App() {
           <button className="refresh" onClick={refresh} disabled={refreshing}>
             {refreshing ? 'Refreshing…' : 'Refresh data'}
           </button>
+        )}
+        {LIVE && health && (
+          <span
+            className={`ib-health ${health.state || 'down'}`}
+            title={[
+              health.summary,
+              health.failed?.length ? `Failing: ${health.failed.join(', ')}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n')}
+          >
+            <span className="dot" />
+            {health.state === 'ok'
+              ? 'IB OK'
+              : health.state === 'degraded'
+                ? 'IB degraded'
+                : 'IB down'}
+            {health.score != null && ` (${health.score})`}
+          </span>
         )}
         <button className="logout" onClick={handleLogout}>
           Log out
