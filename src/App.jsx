@@ -247,30 +247,48 @@ export default function App() {
           <table className="quotes">
             <thead>
               <tr>
-                <th>Symbol</th>
-                <th>Price</th>
-                <th>Change</th>
-                <th>%</th>
+                <th></th>
+                {symbols.map((s) => (
+                  <th key={s} className="sym">{s}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {symbols.map((s) => {
-                const q = quotes[s] ?? {}
-                const dir = q.change > 0 ? 'up' : q.change < 0 ? 'down' : ''
-                const sign = q.change > 0 ? '+' : ''
-                return (
-                  <tr key={s}>
-                    <td className="sym">{s}</td>
-                    <td>{q.price != null ? q.price.toFixed(2) : '—'}</td>
-                    <td className={dir}>
+              <tr>
+                <th>Price</th>
+                {symbols.map((s) => {
+                  const q = quotes[s] ?? {}
+                  return (
+                    <td key={s}>{q.price != null ? q.price.toFixed(2) : '—'}</td>
+                  )
+                })}
+              </tr>
+              <tr>
+                <th>Change</th>
+                {symbols.map((s) => {
+                  const q = quotes[s] ?? {}
+                  const dir = q.change > 0 ? 'up' : q.change < 0 ? 'down' : ''
+                  const sign = q.change > 0 ? '+' : ''
+                  return (
+                    <td key={s} className={dir}>
                       {q.change != null ? `${sign}${q.change.toFixed(2)}` : '—'}
                     </td>
-                    <td className={dir}>
+                  )
+                })}
+              </tr>
+              <tr>
+                <th>%</th>
+                {symbols.map((s) => {
+                  const q = quotes[s] ?? {}
+                  const dir = q.change > 0 ? 'up' : q.change < 0 ? 'down' : ''
+                  const sign = q.change > 0 ? '+' : ''
+                  return (
+                    <td key={s} className={dir}>
                       {q.changePct != null ? `${sign}${q.changePct.toFixed(2)}%` : '—'}
                     </td>
-                  </tr>
-                )
-              })}
+                  )
+                })}
+              </tr>
             </tbody>
           </table>
         </section>
