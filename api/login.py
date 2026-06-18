@@ -9,6 +9,11 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(__file__))
 from _common import make_token, respond, SESSION_TTL  # noqa: E402
 
+# Browsers refuse to store a `Secure` cookie over plain http, so the local dev
+# server (http://localhost) must omit it or login silently fails to persist.
+# Vercel always serves HTTPS, so keep Secure there. (VERCEL=1 in deployments.)
+_SECURE = "; Secure" if os.environ.get("VERCEL") else ""
+
 # --- Brute-force throttling -------------------------------------------------
 # Best-effort, in-memory, per-IP lockout. NOTE: serverless instances are
 # ephemeral and there can be several warm at once, so this is not a hard
@@ -66,12 +71,12 @@ class handler(BaseHTTPRequestHandler):
 
         _failures.pop(ip, None)  # reset on success
         cookie = (
-            f"auth={make_token()}; HttpOnly; Secure; SameSite=Lax; "
+            f"auth={make_token()}; HttpOnly{_SECURE}; SameSite=Lax; "
             f"Path=/; Max-Age={SESSION_TTL}"
         )
         respond(self, 200, {"ok": True}, extra_headers=[("Set-Cookie", cookie)])
 
     def do_DELETE(self):
         # Logout: expire the cookie immediately.
-        cookie = "auth=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"
+        cookie = f"auth=; HttpOnly{_SECURE}; SameSite=Lax; Path=/; Max-Age=0"
         respond(self, 200, {"ok": True}, extra_headers=[("Set-Cookie", cookie)])
