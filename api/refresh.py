@@ -3,9 +3,14 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler
 
-import yfinance as yf
-
 sys.path.insert(0, os.path.dirname(__file__))
+# Market-data source: Yahoo Finance when deployed (Vercel sets VERCEL=1), but the
+# local IB-backed server in dev (set IB_API_URL). ib_client mirrors yfinance's
+# download() shape, so the rest of this file is identical either way.
+if os.environ.get("VERCEL"):
+    import yfinance as yf  # noqa: E402
+else:
+    import ib_client as yf  # noqa: E402
 from _common import (  # noqa: E402
     authed, df_to_json, kv_lock, kv_set, kv_unlock, load_cache, load_frame,
     quotes_from_data, respond, CACHE_KEY,
@@ -58,7 +63,7 @@ class handler(BaseHTTPRequestHandler):
             return respond(self, 401, {"error": "Not authenticated"})
 
         try:
-            self._maybe_refresh()
+            maybe_refresh()
             # Read the (now-current) cache straight back so the response carries
             # the same freshness/data the GET endpoints would serve — no waiting
             # on a CDN-cached round trip.
@@ -78,36 +83,37 @@ class handler(BaseHTTPRequestHandler):
             "graphs": build_graphs(df),
         })
 
-    def _maybe_refresh(self):
-        """Refresh the cache if it's stale, coordinating with concurrent calls:
 
-        1. read current; skip the fetch if refreshed < RATE_LIMIT_SECONDS ago
-        2. take the single-writer lock; if we can't, briefly wait for the holder
-        3. fetch from Yahoo
-        4. write, then release the lock
+def maybe_refresh():
+    """Refresh the cache if it's stale, coordinating with concurrent calls:
 
-        Either way the caller reads the resulting cache back and returns it, so a
-        request that loses the race still serves fresh data instead of erroring.
-        """
-        cache = load_cache()
-        now = int(time.time())
-        if cache and now - (cache.get("refreshedAt") or 0) < RATE_LIMIT_SECONDS:
-            return  # already fresh — serve it as-is
+    1. read current; skip the fetch if refreshed < RATE_LIMIT_SECONDS ago
+    2. take the single-writer lock; if we can't, briefly wait for the holder
+    3. fetch from Yahoo
+    4. write, then release the lock
 
-        prev = cache.get("refreshedAt") if cache else None
-        if not kv_lock(LOCK_KEY):
-            # Another request is already fetching. Wait briefly for its write so
-            # we return fresh data rather than the stale cache.
-            deadline = time.time() + LOCK_WAIT_SECONDS
-            while time.time() < deadline:
-                time.sleep(0.5)
-                cache = load_cache()
-                if cache and cache.get("refreshedAt") != prev:
-                    return
-            return  # timed out — fall back to whatever's current
+    Either way the caller reads the resulting cache back and returns it, so a
+    request that loses the race still serves fresh data instead of erroring.
+    """
+    cache = load_cache()
+    now = int(time.time())
+    if cache and now - (cache.get("refreshedAt") or 0) < RATE_LIMIT_SECONDS:
+        return  # already fresh — serve it as-is
 
-        try:
-            data = build_cache()
-            kv_set(CACHE_KEY, {"refreshedAt": now, "data": data})
-        finally:
-            kv_unlock(LOCK_KEY)
+    prev = cache.get("refreshedAt") if cache else None
+    if not kv_lock(LOCK_KEY):
+        # Another request is already fetching. Wait briefly for its write so
+        # we return fresh data rather than the stale cache.
+        deadline = time.time() + LOCK_WAIT_SECONDS
+        while time.time() < deadline:
+            time.sleep(0.5)
+            cache = load_cache()
+            if cache and cache.get("refreshedAt") != prev:
+                return
+        return  # timed out — fall back to whatever's current
+
+    try:
+        data = build_cache()
+        kv_set(CACHE_KEY, {"refreshedAt": now, "data": data})
+    finally:
+        kv_unlock(LOCK_KEY)
