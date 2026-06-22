@@ -22,9 +22,12 @@ from performance import compute as compute_performance  # noqa: E402
 from rsi import compute as compute_rsi  # noqa: E402
 from p import compute as compute_p  # noqa: E402
 from pt import compute as compute_pt  # noqa: E402
+from p2 import compute as compute_p2  # noqa: E402
+from p3 import compute as compute_p3  # noqa: E402
+from p4 import compute as compute_p4  # noqa: E402
 
 # The universe we cache. Add tickers here as you add graphs.
-TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP"]
+TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP", "DBC", "SPY", "IEF"]
 PERIOD = "6mo"       # how much history to pull from Yahoo
 MAX_ROWS = 130       # cap rows stored per ticker (~6 trading months)
 
@@ -34,6 +37,9 @@ GRAPH_COMPUTES = {
     "rsi": compute_rsi,
     "p": compute_p,
     "pt": compute_pt,
+    "p2": compute_p2,
+    "p3": compute_p3,
+    "p4": compute_p4,
 }
 
 LOCK_KEY = "prices:lock"     # single-writer lock so concurrent refreshes don't all hit Yahoo

@@ -35,6 +35,24 @@ const GRAPHS = [
     title: 'P RSI (14) — last 10 sessions',
     format: 'rsi',
   },
+  {
+    key: 'p3',
+    endpoint: '/api/p3',
+    title: 'UUP+P',
+    format: 'number',
+  },
+  {
+    key: 'p2',
+    endpoint: '/api/p2',
+    title: 'UUP',
+    format: 'number',
+  },
+  {
+    key: 'p4',
+    endpoint: '/api/p4',
+    title: 'CASH',
+    format: 'number',
+  },
 ]
 
 // Shown only as a table (right after Prices), not charted. Same
