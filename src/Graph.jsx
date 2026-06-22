@@ -9,7 +9,7 @@ const COLORS = [
 ]
 
 // How each value is rendered, both on the axis and in the labels above.
-const FORMATS = {
+export const FORMATS = {
   price: { fn: (v) => `$${v.toFixed(2)}`, minMove: 0.01 },
   percent: { fn: (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`, minMove: 0.01 },
   rsi: { fn: (v) => v.toFixed(1), minMove: 0.1 },

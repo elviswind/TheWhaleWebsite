@@ -21,6 +21,7 @@ from _common import (  # noqa: E402
 from performance import compute as compute_performance  # noqa: E402
 from rsi import compute as compute_rsi  # noqa: E402
 from p import compute as compute_p  # noqa: E402
+from pt import compute as compute_pt  # noqa: E402
 
 # The universe we cache. Add tickers here as you add graphs.
 TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP"]
@@ -32,6 +33,7 @@ GRAPH_COMPUTES = {
     "performance": compute_performance,
     "rsi": compute_rsi,
     "p": compute_p,
+    "pt": compute_pt,
 }
 
 LOCK_KEY = "prices:lock"     # single-writer lock so concurrent refreshes don't all hit Yahoo

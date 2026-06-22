@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Graph from './Graph.jsx'
+import GraphTable from './GraphTable.jsx'
 import Login from './Login.jsx'
 
 // Auto-refresh on load when the cache is older than this.
@@ -35,6 +36,15 @@ const GRAPHS = [
     format: 'rsi',
   },
 ]
+
+// Shown only as a table (right after Prices), not charted. Same
+// { label: [{time,value}] } shape as the graph endpoints.
+const TABLE = {
+  key: 'pt',
+  endpoint: '/api/pt',
+  title: 'PT',
+  format: 'number',
+}
 
 export default function App() {
   // authed: null = checking, false = needs login, true = logged in
@@ -105,15 +115,16 @@ export default function App() {
         return
       }
 
+      const sources = [...GRAPHS, TABLE]
       const results = await Promise.all(
-        GRAPHS.map((g) =>
+        sources.map((g) =>
           fetch(g.endpoint)
             .then((r) => (r.ok ? r.json() : null))
             .catch(() => null) // tolerate a truncated/empty body — show the rest
         )
       )
       const next = {}
-      GRAPHS.forEach((g, i) => {
+      sources.forEach((g, i) => {
         next[g.key] = results[i]?.data ?? {}
       })
       applyData({
@@ -301,6 +312,13 @@ export default function App() {
               </tr>
             </tbody>
           </table>
+        </section>
+      )}
+
+      {graphs[TABLE.key] && Object.keys(graphs[TABLE.key]).length > 0 && (
+        <section>
+          <h2 className="section">{TABLE.title}</h2>
+          <GraphTable series={graphs[TABLE.key]} format={TABLE.format} />
         </section>
       )}
 

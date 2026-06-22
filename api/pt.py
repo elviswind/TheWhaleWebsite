@@ -6,8 +6,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from _common import authed, load_frame, df_to_json, respond, getp, rsi  # noqa: E402
 
 def compute(df):
-    p, _, _ = getp(df.iloc[-60:][['MDY','GLD','SHY','TLT','XLK','XLV']])
-    return rsi(p.shift(1)).iloc[-10:]
+    _, _, f = getp(df.iloc[-60:][['MDY','GLD','SHY','TLT','XLK','XLV']])
+    return f * 100
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):

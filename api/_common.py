@@ -76,9 +76,18 @@ def df_to_json(df) -> dict:
 
         {"XLK": [{"time": "2024-01-02", "value": 187.34}, ...], "TLT": [...]}
 
-    A single-ticker Series is also accepted. NaN points are skipped."""
-    if getattr(df, "ndim", 2) == 1:  # Series -> one-column frame
-        df = df.to_frame()
+    A Series is also accepted, oriented by its index:
+      * a time-indexed Series (one ticker over time) becomes one column, so it
+        renders as a tall single-line series;
+      * a label-indexed Series (e.g. the latest value per ticker) is transposed
+        to a single row, so the frontend shows one row of ticker columns instead
+        of a tall, mostly-blank table.
+
+    NaN points are skipped."""
+    if getattr(df, "ndim", 2) == 1:  # Series
+        idx = df.index
+        time_indexed = len(idx) > 0 and hasattr(idx[0], "strftime")
+        df = df.to_frame() if time_indexed else df.to_frame().T
 
     out = {}
     for col in df.columns:
@@ -256,8 +265,8 @@ def rsi(returns, n=14):
 
 def getp(df):
     pct = df.dropna().pct_change()
-    f = pct.rolling(3).sum() + pct
+    f = df.dropna().pct_change(3) + pct
     f = f.dropna()
     choice = f.idxmin(axis=1)
     p = pct.shift(-1).loc[choice.index].apply(lambda row: row[choice[row.name]], axis=1)
-    return p, choice
+    return p, choice, f.iloc[-1]
