@@ -53,6 +53,12 @@ const GRAPHS = [
     title: 'CASH',
     format: 'number',
   },
+  {
+    key: 'p5',
+    endpoint: '/api/p5',
+    title: 'UUP+P+UNC',
+    format: 'number',
+  },
 ]
 
 // Shown only as a table (right after Prices), not charted. Same
