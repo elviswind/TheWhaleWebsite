@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from _common import authed, load_frame, df_to_json, respond  # noqa: E402
 
 def compute(df):
-    x = df.iloc[-4:].pct_change().fillna(0)
+    x = df[['MDY','GLD','SHY','TLT','XLK','XLV']].iloc[-4:].pct_change().fillna(0)
     x.iloc[-1] *= 2
     return x.cumsum() * 100
 
