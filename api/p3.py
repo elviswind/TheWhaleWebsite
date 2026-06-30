@@ -5,13 +5,9 @@ from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, os.path.dirname(__file__))
 from _common import authed, load_frame, df_to_json, respond, getp, rsi  # noqa: E402
 
-def zscore(x, w, fill=0.0):
-    sd = x.rolling(w).std()
-    return ((x - x.rolling(w).mean()) / sd).where(sd != 0, fill)
-
 def compute(df):
-    s = df[['UUP', 'IEF', 'SHY', 'XLP']]
-    return zscore(s.pct_change(), 15).iloc[-10:]
+    s = df[['GLD', 'UUP', 'TIP']]
+    return (s.pct_change().rolling(6).mean() / s.pct_change().clip(upper=0).rolling(6).std()).iloc[-10:]
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):

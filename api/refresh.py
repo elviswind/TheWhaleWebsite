@@ -28,7 +28,7 @@ from p4 import compute as compute_p4  # noqa: E402
 from p5 import compute as compute_p5  # noqa: E402
 
 # The universe we cache. Add tickers here as you add graphs.
-TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP", "DBC", "SPY", "IEF"]
+TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP", "DBC", "SPY", "IEF", "TIP"]
 PERIOD = "6mo"       # how much history to pull from Yahoo
 MAX_ROWS = 130       # cap rows stored per ticker (~6 trading months)
 
