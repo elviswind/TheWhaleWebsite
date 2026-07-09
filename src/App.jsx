@@ -14,58 +14,76 @@ const LIVE_INTERVAL_MS = 1000
 // In live mode, poll the IB server's /health verdict on this cadence.
 const HEALTH_INTERVAL_MS = 5000
 
-// Server-computed graphs. Each endpoint returns { data: { label: [{time,value}] } }.
-// Add a new backend graph here and it shows up automatically.
+// Server-computed graphs, all served by GET /api/metrics as
+// { metrics: { key: { label: [{time,value}] } } }. Each `key` must match a
+// @metric("key") in api/metrics.py; add one there and a row here, and the
+// graph shows up automatically.
 const GRAPHS = [
   {
     key: 'performance',
-    endpoint: '/api/performance',
     title: 'Cumulative return — recent sessions',
     format: 'percent',
   },
   {
     key: 'rsi',
-    endpoint: '/api/rsi',
     title: 'RSI (14) — last 10 sessions',
     format: 'rsi',
   },
   {
     key: 'p',
-    endpoint: '/api/p',
     title: 'P RSI (14) — last 10 sessions',
     format: 'rsi',
   },
   {
-    key: 'p3',
-    endpoint: '/api/p3',
-    title: 'UUP+P',
+    key: 'UUP',
+    title: 'UUP (max)',
     format: 'number',
   },
   {
-    key: 'p2',
-    endpoint: '/api/p2',
-    title: 'UUP',
+    key: 'UUP+P+UNC',
+    title: 'UUP+P+UNC (min)',
     format: 'number',
   },
   {
-    key: 'p4',
-    endpoint: '/api/p4',
-    title: 'CASH',
+    key: 'CASH',
+    title: 'CASH (min)',
     format: 'number',
   },
   {
-    key: 'p5',
-    endpoint: '/api/p5',
-    title: 'UUP+P+UNC',
+    key: 'XLP',
+    title: 'XLP (min)',
+    format: 'number',
+  },
+  {
+    key: 'UUP+P1',
+    title: 'UUP+P1 (max)',
+    format: 'number',
+  },
+  {
+    key: 'UUP+P2',
+    title: 'UUP+P2 (min)',
+    format: 'number',
+  },
+  {
+    key: 'P_NORMAL1',
+    title: 'P_NORMAL1 (min)',
+    format: 'number',
+  },
+  {
+    key: 'P_NORMAL2',
+    title: 'P_NORMAL2 (max)',
+    format: 'number',
+  },
+  {
+    key: 'P_NORMAL3',
+    title: 'P_NORMAL3 (max)',
     format: 'number',
   },
 ]
 
-// Shown only as a table (right after Prices), not charted. Same
-// { label: [{time,value}] } shape as the graph endpoints.
+// Shown only as a table (right after Prices), not charted. Same metric shape.
 const TABLE = {
   key: 'pt',
-  endpoint: '/api/pt',
   title: 'PT',
   format: 'number',
 }
@@ -139,23 +157,17 @@ export default function App() {
         return
       }
 
-      const sources = [...GRAPHS, TABLE]
-      const results = await Promise.all(
-        sources.map((g) =>
-          fetch(g.endpoint)
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null) // tolerate a truncated/empty body — show the rest
-        )
-      )
-      const next = {}
-      sources.forEach((g, i) => {
-        next[g.key] = results[i]?.data ?? {}
-      })
+      // One request for every metric. A metric that fails server-side comes
+      // back as {}, so the rest of the page still renders.
+      const metrics = await fetch('/api/metrics')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((body) => body?.metrics ?? {})
+        .catch(() => ({})) // tolerate a truncated/empty body — show the prices
       applyData({
         symbols: index.symbols,
         refreshedAt: index.refreshedAt,
         quotes: index.quotes,
-        graphs: next,
+        graphs: metrics,
       })
     } catch (err) {
       setAuthed(true)

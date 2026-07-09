@@ -16,33 +16,14 @@ from _common import (  # noqa: E402
     quotes_from_data, respond, CACHE_KEY,
 )
 
-# Reuse each graph's compute() so the data returned by refresh matches exactly
-# what the GET endpoints would produce.
-from performance import compute as compute_performance  # noqa: E402
-from rsi import compute as compute_rsi  # noqa: E402
-from p import compute as compute_p  # noqa: E402
-from pt import compute as compute_pt  # noqa: E402
-from p2 import compute as compute_p2  # noqa: E402
-from p3 import compute as compute_p3  # noqa: E402
-from p4 import compute as compute_p4  # noqa: E402
-from p5 import compute as compute_p5  # noqa: E402
+# Reuse the metric registry so the data returned by refresh matches exactly what
+# GET /api/metrics would produce.
+from metrics import compute_all  # noqa: E402
 
-# The universe we cache. Add tickers here as you add graphs.
+# The universe we cache. Add tickers here as you add metrics.
 TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP", "DBC", "SPY", "IEF", "TIP"]
 PERIOD = "6mo"       # how much history to pull from Yahoo
 MAX_ROWS = 130       # cap rows stored per ticker (~6 trading months)
-
-# Keys here must match the GRAPHS list in src/App.jsx.
-GRAPH_COMPUTES = {
-    "performance": compute_performance,
-    "rsi": compute_rsi,
-    "p": compute_p,
-    "pt": compute_pt,
-    "p2": compute_p2,
-    "p3": compute_p3,
-    "p4": compute_p4,
-    "p5": compute_p5,
-}
 
 LOCK_KEY = "prices:lock"     # single-writer lock so concurrent refreshes don't all hit Yahoo
 # Local IB-backed dev refreshes aggressively (the UI polls every second); the
@@ -55,19 +36,6 @@ LOCK_WAIT_SECONDS = 10       # how long a lock-loser waits for the winner's writ
 def build_cache() -> dict:
     closes = yf.download(TICKERS, period=PERIOD, progress=False)["Close"]
     return df_to_json(closes.tail(MAX_ROWS))
-
-
-def build_graphs(df) -> dict:
-    """Compute every graph from the freshly-read frame. A failing graph yields
-    {} rather than sinking the whole refresh — mirrors the frontend's tolerance
-    of a missing graph endpoint."""
-    out = {}
-    for key, fn in GRAPH_COMPUTES.items():
-        try:
-            out[key] = df_to_json(fn(df))
-        except Exception:  # noqa: BLE001
-            out[key] = {}
-    return out
 
 
 class handler(BaseHTTPRequestHandler):
@@ -93,7 +61,7 @@ class handler(BaseHTTPRequestHandler):
             "refreshedAt": refreshed_at,
             "symbols": sorted(prices),
             "quotes": quotes_from_data(prices),
-            "graphs": build_graphs(df),
+            "graphs": compute_all(df),
         })
 
 

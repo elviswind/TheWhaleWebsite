@@ -15,9 +15,9 @@ api/refresh.py        POST — pulls 3y of closes for the tickers, caps at 750
                       rows, writes them to Vercel KV (the only Yahoo caller)
 api/stock.py          GET  — reads the KV cache; ?symbol=XLK → that series,
                       no symbol → list of cached symbols
-api/performance.py    GET  — cumulative return, computed server-side from the
-                      cached DataFrame, returned chart-ready (no Yahoo call)
-api/rsi.py            GET  — RSI(14) over recent sessions, same pattern
+api/metrics.py        GET  — every computed metric (performance, RSI, p*, pt),
+                      derived server-side from the cached DataFrame and returned
+                      chart-ready (no Yahoo call). ?m=p3,p4 selects a subset
 api/login.py          POST = log in (sets cookie), DELETE = log out
 api/_common.py        shared helpers (auth, KV, df_to_json, load_frame, respond)
                       — underscore = not a route; bundled into each function
@@ -66,22 +66,30 @@ refresh errors).
 
 `GET /api/stock` → `{ "symbols": ["GLD", "MDY", ...], "refreshedAt": 1781041307 }`
 
-`GET /api/performance` →
+`GET /api/metrics` →
 ```json
-{ "data": { "XLK": [{ "time": "2026-05-20", "value": 0.0 }, ...], "TLT": [...] }, "refreshedAt": 1781041307 }
+{
+  "metrics": {
+    "performance": { "XLK": [{ "time": "2026-05-20", "value": 0.0 }, ...], "TLT": [...] },
+    "rsi": { ... }
+  },
+  "refreshedAt": 1781041307
+}
 ```
-Computed server-side. `api/performance.py` rebuilds the cached closes into a
-wide pandas DataFrame `df` (DatetimeIndex × tickers — the same shape yfinance
-gives you) and runs `compute(df)`. Paste quant code into `compute()`; it must
-return a DataFrame/Series, which `df_to_json` turns into chart-ready series. The
-default is `df.iloc[-11:].pct_change().fillna(0).cumsum() * 100` (cumulative
-return over the last 11 sessions, in percent). `api/rsi.py` follows the same
-pattern for RSI(14). The frontend just plots `data`.
+`?m=p3` or `?m=p3,p4` returns just those metrics; an unknown key is a 400. A
+metric that raises comes back as `{}` rather than failing the whole response.
 
-To add a graph: copy `api/performance.py`, edit `compute(df)`, then add one
-entry to the `GRAPHS` list in `src/App.jsx` (`endpoint`, `title`, and a
-`format` of `price` | `percent` | `rsi` | `number`). The shared `Graph`
-component renders it and shows each series' latest value as a label.
+Computed server-side. `api/metrics.py` rebuilds the cached closes into a wide
+pandas DataFrame `df` (DatetimeIndex × tickers — the same shape yfinance gives
+you) and runs each registered metric over it. A metric returns a
+DataFrame/Series, which `df_to_json` turns into chart-ready series.
+
+To add a metric: write the function in `api/metrics.py`, decorate it with
+`@metric("key")`, and add an entry to the `GRAPHS` list in `src/App.jsx` (`key`,
+`title`, and a `format` of `price` | `percent` | `rsi` | `number`). It's then
+served by `/api/metrics` and included in `/api/refresh` automatically. If it
+reads a ticker not already in `TICKERS` (`api/refresh.py`), add that too. The
+shared `Graph` component renders it and labels each series' latest value.
 
 ## Deploy
 
