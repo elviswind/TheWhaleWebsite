@@ -35,50 +35,20 @@ const GRAPHS = [
     format: 'rsi',
   },
   {
-    key: 'UUP',
-    title: 'UUP (max)',
+    key: 'F2',
+    title: 'F2 (max)',
     format: 'number',
   },
   {
-    key: 'UUP+P+UNC',
-    title: 'UUP+P+UNC (min)',
+    key: 'F3',
+    title: 'F3 (min)',
     format: 'number',
   },
   {
-    key: 'CASH',
-    title: 'CASH (min)',
+    key: 'F4',
+    title: 'F4 (min)',
     format: 'number',
-  },
-  {
-    key: 'XLP',
-    title: 'XLP (min)',
-    format: 'number',
-  },
-  {
-    key: 'UUP+P1',
-    title: 'UUP+P1 (max)',
-    format: 'number',
-  },
-  {
-    key: 'UUP+P2',
-    title: 'UUP+P2 (min)',
-    format: 'number',
-  },
-  {
-    key: 'P_NORMAL1',
-    title: 'P_NORMAL1 (min)',
-    format: 'number',
-  },
-  {
-    key: 'P_NORMAL2',
-    title: 'P_NORMAL2 (max)',
-    format: 'number',
-  },
-  {
-    key: 'P_NORMAL3',
-    title: 'P_NORMAL3 (max)',
-    format: 'number',
-  },
+  }
 ]
 
 // Shown only as a table (right after Prices), not charted. Same metric shape.

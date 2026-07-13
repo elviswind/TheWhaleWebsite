@@ -65,57 +65,25 @@ def p(df):
     picked, _, _ = getp(df.iloc[-60:][PICKS])
     return rsi(picked.shift(1)).iloc[-10:]
 
-
 @metric("pt")
 def pt(df):
     _, _, f = getp(df.iloc[-60:][PICKS])
     return f * 100
 
-@metric("UUP")
-def f_accel_w3_b308(df):
-    s = df[['UUP', 'DBC', 'SPY', 'XLV']]
-    return (s.pct_change(3) - s.pct_change(3).shift(3)).iloc[-10:]
+@metric("F2")
+def f_dur(df):
+    s = df[['SHY','SPYG','TIP','UUP','XLK','XLP']]
+    return (s.pct_change().clip(upper=0).rolling(6).std() / (s.pct_change().clip(lower=0).rolling(6).std()+ 0.00001)).iloc[-10:] * 1000
 
-@metric("UUP+P+UNC")
-def f_zret_w15_b168(df):
-    s = df[['UUP', 'SHY', 'XLP']]
-    return zscore(s.pct_change(), 15).iloc[-10:]
+@metric("F3")
+def f_sharpe(df):
+    s = df[['IEF','TIP','TLT','XLK','XLP','XLV']]
+    return (s.pct_change().rolling(6).mean() / (s.pct_change().rolling(6).std() + 0.00001)).iloc[-10:] * 1000
 
-@metric("CASH")
-def f_skewz_w7_b3(df):
-    s = df[['SPY', 'TLT', 'GLD', 'DBC']]
-    return safediv(s.pct_change().rolling(7).skew(), s.pct_change().rolling(7).skew().rolling(7).std()).iloc[-10:]
-
-@metric("XLP")
-def f_trend_w3_b228(df):
-    s = df[['TIP', 'XLP', 'XLV']]
-    return (s.rolling(3).mean() / s.rolling(2 * 3).mean() - 1).iloc[-10:]
-
-@metric("UUP+P1")
-def f_dd_w15_b187(df):
-    s = df[['IEF', 'TLT', 'DBC']]
-    return (s / s.rolling(15).max() - 1).iloc[-10:]
-
-@metric("UUP+P2")
-def f_sortino_w6_b119(df):
-    s = df[['GLD', 'SHY', 'TIP', 'TLT', 'UUP', 'XLP']]
-    return (s.pct_change().rolling(6).mean() / s.pct_change().clip(upper=0).rolling(6).std()).iloc[-10:]
-
-@metric("P_NORMAL1")
-def f_downvol_w7_b147(df):
-    s = df[['GLD', 'TIP', 'DBC']]
-    return (s.pct_change().clip(upper=0).rolling(7).std()).iloc[-10:]
-
-@metric("P_NORMAL2")
-def f_skew_w6_b190(df):
-    s = df[['IEF', 'SHY', 'XLV']]
-    return s.pct_change().rolling(6).skew().iloc[-10:]
-
-@metric("P_NORMAL3")
-def f_upvolz_w10_b50(df):
-    s = df[['TLT', 'UUP', 'XLK']]
-    return zscore(s.pct_change().clip(lower=0).rolling(10).std(), 10).iloc[-10:]
-
+@metric("F4")
+def f_zprice(df):
+    s = df[['IEF','SHY','TIP','TLT','XLP','XLV']]
+    return ((s - s.rolling(15).mean()) / s.rolling(15).std()).iloc[-10:] * 1000
 
 
 # --- Compute ---------------------------------------------------------------

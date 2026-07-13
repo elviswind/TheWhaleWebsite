@@ -21,7 +21,7 @@ from _common import (  # noqa: E402
 from metrics import compute_all  # noqa: E402
 
 # The universe we cache. Add tickers here as you add metrics.
-TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP", "DBC", "SPY", "IEF", "TIP"]
+TICKERS = ["XLK", "TLT", "GLD", "SHY", "MDY", "XLV", "UUP", "XLP", "DBC", "SPY", "IEF", "TIP", "SPYG"]
 PERIOD = "6mo"       # how much history to pull from Yahoo
 MAX_ROWS = 130       # cap rows stored per ticker (~6 trading months)
 
