@@ -20,19 +20,14 @@ const HEALTH_INTERVAL_MS = 5000
 // graph shows up automatically.
 const GRAPHS = [
   {
-    key: 'performance',
-    title: 'Cumulative return — recent sessions',
-    format: 'percent',
-  },
-  {
     key: 'rsi',
     title: 'RSI (14) — last 10 sessions',
     format: 'rsi',
   },
   {
-    key: 'p',
-    title: 'P RSI (14) — last 10 sessions',
-    format: 'rsi',
+    key: 'F1',
+    title: 'F1 (min)',
+    format: 'number',
   },
   {
     key: 'F2',
@@ -321,12 +316,12 @@ export default function App() {
         </section>
       )}
 
-      {graphs[TABLE.key] && Object.keys(graphs[TABLE.key]).length > 0 && (
+      {/* {graphs[TABLE.key] && Object.keys(graphs[TABLE.key]).length > 0 && (
         <section>
           <h2 className="section">{TABLE.title}</h2>
           <GraphTable series={graphs[TABLE.key]} format={TABLE.format} />
         </section>
-      )}
+      )} */}
 
       {GRAPHS.map((g) =>
         graphs[g.key] && Object.keys(graphs[g.key]).length > 0 ? (

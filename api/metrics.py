@@ -70,6 +70,11 @@ def pt(df):
     _, _, f = getp(df.iloc[-60:][PICKS])
     return f * 100
 
+@metric("F1")
+def f_1(df):
+    s = df[['MDY', 'GLD', 'SHY', 'TLT', 'XLK', 'XLV']]
+    return (s.pct_change(3) + s.pct_change()).iloc[-10:] * 100
+
 @metric("F2")
 def f_dur(df):
     s = df[['SHY','SPYG','TIP','UUP','XLK','XLP']]
