@@ -4,13 +4,14 @@ import time
 from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(__file__))
-# Market-data source: Yahoo Finance when deployed (Vercel sets VERCEL=1), but the
-# local IB-backed server in dev (set IB_API_URL). ib_client mirrors yfinance's
-# download() shape, so the rest of this file is identical either way.
+# Market-data source: Yahoo Finance when deployed (Vercel sets VERCEL=1). In dev
+# it's hybrid_client — Yahoo's dividend/split-adjusted history with the current
+# day's live row from the local IB server (set IB_API_URL). Both mirror
+# yfinance's download() shape, so the rest of this file is identical either way.
 if os.environ.get("VERCEL"):
     import yfinance as yf  # noqa: E402
 else:
-    import ib_client as yf  # noqa: E402
+    import hybrid_client as yf  # noqa: E402
 from _common import (  # noqa: E402
     authed, df_to_json, kv_lock, kv_set, kv_unlock, load_cache, load_frame,
     quotes_from_data, respond, CACHE_KEY,
