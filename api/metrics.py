@@ -90,6 +90,18 @@ def f_zprice(df):
     s = df[['IEF','SHY','TIP','TLT','XLP','XLV']]
     return ((s - s.rolling(15).mean()) / s.rolling(15).std()).iloc[-10:] * 1000
 
+@metric("F5")
+def f_skewz(df):
+    s = df[['GLD', 'UUP', 'TIP']]
+    return (s.pct_change().rolling(5).skew() / (s.pct_change().rolling(5).skew().rolling(5).std() + 0.00001)).iloc[-10:] * 1000
+
+@metric("F6")
+def f_zret(df):
+    s = df[['UUP', 'IEF', 'TLT', 'SHY']]
+    s = s.pct_change()
+    sd = s.rolling(30).std()
+    return ((s - s.rolling(30).mean()) / sd).iloc[-10:] * 1000
+
 
 # --- Compute ---------------------------------------------------------------
 def compute_all(df, keys=None) -> dict:

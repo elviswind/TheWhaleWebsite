@@ -43,6 +43,16 @@ const GRAPHS = [
     key: 'F4',
     title: 'F4 (min)',
     format: 'number',
+  },
+  {
+    key: 'F5',
+    title: 'F5 (max)',
+    format: 'number',
+  },
+  {
+    key: 'F6',
+    title: 'F6 (min)',
+    format: 'number',
   }
 ]
 
